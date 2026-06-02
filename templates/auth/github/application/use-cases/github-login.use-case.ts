@@ -1,5 +1,5 @@
-import { UserRepository } from "../../../domain/repositories/user.repository";
-import { generateToken } from "../../utils/jwt.util";
+import { UserRepository } from "../../domain/repositories/user.repository";
+import { generateToken } from "../utils/jwt.util";
 
 export class GithubLoginUseCase {
     constructor(private userRepo: UserRepository) {}

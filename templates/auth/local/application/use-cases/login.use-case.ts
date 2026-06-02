@@ -1,6 +1,6 @@
 import bcrypt from "bcrypt";
-import { UserRepository } from "../../../domain/repositories/user.repository";
-import { generateToken } from "../../utils/jwt.util";
+import { UserRepository } from "../../domain/repositories/user.repository";
+import { generateToken } from "../utils/jwt.util";
 
 export class LoginUseCase {
     constructor(private userRepo: UserRepository) {}

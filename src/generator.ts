@@ -10,54 +10,48 @@ export async function generateProject(choices: UserChoices) {
     const { projectName, database, auth, includeCI } = choices;
     const projectPath = path.join(process.cwd(), projectName);
 
-    const spinner = ora(`กำลังสร้าง ${projectName}...`).start();
+    const spinner = ora(`Creating ${projectName}...`).start();
 
     try {
-        // 1. copy base template (โครงสร้าง Clean Architecture)
         await copyTemplate(path.join(TEMPLATES_DIR, "base"), projectPath);
-        spinner.text = "สร้างโครงสร้างหลัก...";
+        spinner.text = "Setting up project structure...";
 
-        // 2. copy database template (schema.prisma + prisma.config.ts)
         await copyTemplate(
             path.join(TEMPLATES_DIR, "database", database),
             path.join(projectPath, "prisma"),
         );
-        spinner.text = "ตั้งค่า database...";
+        spinner.text = "Configuring database...";
 
-        // 3. copy auth templates ที่เลือก
         for (const provider of auth) {
             await copyTemplate(
                 path.join(TEMPLATES_DIR, "auth", provider),
                 path.join(projectPath, "src"),
             );
         }
-        spinner.text = "ตั้งค่า auth...";
+        spinner.text = "Configuring auth...";
 
-        // 4. สร้าง package.json จาก template แทน placeholder
         const packageJson = buildPackageJson(projectName, auth);
         await writeFile(
             path.join(projectPath, "package.json"),
             JSON.stringify(packageJson, null, 2),
         );
 
-        // 5. สร้าง .env จาก template ตาม options ที่เลือก
         const envContent = buildEnvFile(database, auth);
         await writeFile(path.join(projectPath, ".env.example"), envContent);
-        spinner.text = "สร้างไฟล์ config...";
+        spinner.text = "Generating config files...";
 
-        // 6. สร้าง CI ถ้าเลือก
         if (includeCI) {
             await copyTemplate(
                 path.join(TEMPLATES_DIR, "ci"),
                 path.join(projectPath, ".github", "workflows"),
             );
-            spinner.text = "ตั้งค่า CI...";
+            spinner.text = "Setting up CI...";
         }
 
-        spinner.succeed(chalk.green(`สร้าง ${projectName} สำเร็จ!`));
+        spinner.succeed(chalk.green(`Created ${projectName} successfully!`));
         printNextSteps(projectName, database);
     } catch (err) {
-        spinner.fail(chalk.red("เกิดข้อผิดพลาด"));
+        spinner.fail(chalk.red("Something went wrong"));
         throw err;
     }
 }
@@ -83,7 +77,7 @@ function buildPackageJson(projectName: string, auth: string[]) {
         vitest: "^4.0.0",
     };
 
-    // เพิ่ม dependencies ตาม auth ที่เลือก
+    // add dependencies based on selected auth providers
     if (auth.includes("local")) {
         deps["bcrypt"] = "^6.0.0";
         devDeps["@types/bcrypt"] = "^6.0.0";
@@ -123,10 +117,10 @@ function buildEnvFile(database: string, auth: string[]): string {
 
     if (database === "postgresql") {
         lines.push(
-            "# Pooler URL — ใช้ใน PrismaClient runtime",
+            "# Pooler URL — used by PrismaClient at runtime",
             "DATABASE_URL=postgresql://user:password@host/db?sslmode=require",
             "",
-            "# Direct URL — ใช้สำหรับ prisma migrate",
+            "# Direct URL — used for prisma migrate",
             "DIRECT_URL=postgresql://user:password@host/db?sslmode=require",
             "",
         );
@@ -160,7 +154,7 @@ ${chalk.bold("Next steps:")}
 
   ${chalk.cyan(`cd ${projectName}`)}
   ${chalk.cyan("npm install")}
-  ${chalk.cyan("cp .env.example .env")}   ${chalk.gray("← ใส่ค่าจริงใน .env")}
+  ${chalk.cyan("cp .env.example .env")}   ${chalk.gray("← fill in your credentials")}
   ${database === "postgresql"
             ? chalk.cyan("npx prisma migrate dev --name init")
             : chalk.cyan("npx prisma db push")

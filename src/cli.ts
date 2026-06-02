@@ -16,34 +16,34 @@ export async function runCLI(projectName?: string) {
         {
             type: "input",
             name: "projectName",
-            message: "ชื่อโปรเจกต์:",
+            message: "Project name:",
             default: projectName ?? "my-backend",
             when: !projectName,
         },
         {
             type: "select",
             name: "database",
-            message: "เลือก database:",
+            message: "Select database:",
             choices: [
                 { name: "PostgreSQL (Neon / Supabase)", value: "postgresql" },
-                { name: "SQLite  (เหมาะกับ dev / prototype)", value: "sqlite" },
+                { name: "SQLite  (local dev / prototype)", value: "sqlite" },
             ],
         },
         {
             type: "checkbox",
             name: "auth",
-            message: "เลือก auth provider: (space เพื่อเลือก)",
+            message: "Select auth providers: (space to select)",
             choices: [
                 { name: "Local  (email + password)", value: "local", checked: true },
                 { name: "Google OAuth", value: "google" },
                 { name: "GitHub OAuth", value: "github" },
             ],
-            validate: (input) => input.length > 0 || "เลือกอย่างน้อย 1 อัน",
+            validate: (input) => input.length > 0 || "Select at least one provider",
         },
         {
             type: "confirm",
             name: "includeCI",
-            message: "เพิ่ม GitHub Actions CI/CD มั้ย?",
+            message: "Include GitHub Actions CI/CD?",
             default: true,
         },
     ]);

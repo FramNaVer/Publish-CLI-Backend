@@ -1,5 +1,5 @@
 import bcrypt from "bcrypt";
-import { UserRepository } from "../../../domain/repositories/user.repository";
+import { UserRepository } from "../../domain/repositories/user.repository";
 
 export class RegisterUseCase {
     constructor(private userRepo: UserRepository) {}
