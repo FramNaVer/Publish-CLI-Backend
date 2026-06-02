@@ -1,10 +1,10 @@
 {
-  "name": "create-my-backend",
+  "name": "@framnaver/create-backend",
   "version": "1.0.0",
   "description": "Generate a backend project with Clean Architecture",
   "main": "dist/index.js",
   "bin": {
-    "create-my-backend": "dist/index.js"
+    "create-backend": "dist/index.js"
   },
   "scripts": {
     "build": "tsc",
