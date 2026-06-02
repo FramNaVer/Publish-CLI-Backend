@@ -30,3 +30,8 @@ Thumbs.db
 
 # TypeScript cache
 *.tsbuildinfo
+
+# Generated test projects from CLI
+my-project-name/
+test-*/
+*-project/
