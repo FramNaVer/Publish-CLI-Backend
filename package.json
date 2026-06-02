@@ -1,6 +1,6 @@
 {
   "name": "@tanadon/create-backend",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Generate a backend project with Clean Architecture",
   "main": "dist/index.js",
   "bin": {
