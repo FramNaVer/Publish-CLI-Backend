@@ -6,6 +6,7 @@ export interface UserChoices {
     projectName: string;
     database: "postgresql" | "sqlite";
     auth: ("local" | "google" | "github")[];
+    includeDocker: boolean;
     includeCI: boolean;
 }
 
@@ -39,6 +40,13 @@ export async function runCLI(projectName?: string) {
                 { name: "GitHub OAuth", value: "github" },
             ],
             validate: (input) => input.length > 0 || "Select at least one provider",
+        },
+        {
+            type: "confirm",
+            name: "includeDocker",
+            message: "Include Docker Compose for local development?",
+            default: true,
+            when: (answers) => answers.database === "postgresql",
         },
         {
             type: "confirm",
