@@ -107,6 +107,7 @@ function buildPackageJson(projectName: string, auth: string[]) {
         name: projectName,
         version: "1.0.0",
         scripts: {
+            postinstall: "prisma generate",
             dev: "ts-node main.ts",
             build: "tsc --outDir dist",
             start: "node dist/main.js",
