@@ -18,7 +18,7 @@ export async function generateProject(choices: UserChoices) {
 
         await copyTemplate(
             path.join(TEMPLATES_DIR, "database", database),
-            path.join(projectPath, "prisma"),
+            projectPath,
         );
         spinner.text = "Configuring database...";
 
