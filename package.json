@@ -1,5 +1,5 @@
 {
-  "name": "@framnaver/create-backend",
+  "name": "@tanadon/create-backend",
   "version": "1.0.0",
   "description": "Generate a backend project with Clean Architecture",
   "main": "dist/index.js",
