@@ -1,45 +1,43 @@
-# create-my-backend
+# @tanadon/create-backend
 
-CLI สำหรับสร้าง backend project ด้วย Clean Architecture พร้อม Prisma, Express, และ TypeScript
+CLI for scaffolding a backend project with Clean Architecture, Prisma, Express, and TypeScript.
 
 ## Quick Start
 
 ```bash
-npx create-my-backend my-app
+npx @tanadon/create-backend my-app
 ```
 
-หรือไม่ใส่ชื่อก็ได้ CLI จะถามเอง:
+Or let the CLI prompt for a name:
 
 ```bash
-npx create-my-backend
+npx @tanadon/create-backend
 ```
 
 ## Usage
 
 ```bash
-# สร้างโปรเจกต์ใหม่
-npx create-my-backend my-app
+# Create a new project
+npx @tanadon/create-backend my-app
 
-# ดูก่อนว่าจะสร้างอะไรบ้าง (ยังไม่สร้างไฟล์จริง)
-npx create-my-backend my-app --dry-run
+# Preview what will be generated (no files created)
+npx @tanadon/create-backend my-app --dry-run
 ```
 
 ## Options
 
 | Option | Description |
 |--------|-------------|
-| `[project-name]` | ชื่อโปรเจกต์ (ถ้าไม่ใส่จะถามทีหลัง) |
-| `--dry-run` | แสดง file tree และ dependencies ที่จะสร้าง โดยไม่สร้างไฟล์จริง |
+| `[project-name]` | Project name (prompted if omitted) |
+| `--dry-run` | Show the file tree and dependencies without creating any files |
 
 ## Prompts
 
-CLI จะมีถามคำถาม 4 ข้อ:
-
-| คำถาม | ตัวเลือก |
-|-------|---------|
-| ชื่อโปรเจกต์ | free text |
+| Prompt | Choices |
+|--------|---------|
+| Project name | free text |
 | Database | PostgreSQL (Neon / Supabase), SQLite |
-| Auth provider | Local (email + password), Google OAuth, GitHub OAuth |
+| Auth providers | Local (email + password), Google OAuth, GitHub OAuth |
 | GitHub Actions CI/CD | Yes / No |
 
 ## Generated Project Structure
@@ -47,12 +45,12 @@ CLI จะมีถามคำถาม 4 ข้อ:
 ```
 my-app/
 ├── main.ts                         # Express server entry point
-├── package.json                    # Dependencies ตาม options ที่เลือก
+├── package.json                    # Dependencies based on selected options
 ├── tsconfig.json
 ├── .gitignore
-├── .env.example                    # Template env vars
+├── .env.example                    # Environment variable template
 ├── prisma/
-│   ├── schema.prisma               # Schema ตาม database ที่เลือก
+│   ├── schema.prisma               # Schema for the selected database
 │   └── prisma.config.ts
 ├── src/
 │   ├── domain/
@@ -63,14 +61,14 @@ my-app/
 │   │   └── utils/jwt.util.ts
 │   ├── infrastructure/
 │   │   ├── repositories/prisma-user.repository.ts
-│   │   └── config/                 # passport configs (ถ้าเลือก OAuth)
+│   │   └── config/                 # passport configs (if OAuth selected)
 │   └── presentation/
 │       ├── controllers/auth.controller.ts
 │       ├── routes/auth.route.ts
 │       ├── validators/auth.validator.ts
 │       └── middleware/error.middleware.ts
 └── .github/
-    └── workflows/ci.yml            # (ถ้าเลือก CI)
+    └── workflows/ci.yml            # (if CI selected)
 ```
 
 ## API Endpoints
@@ -78,8 +76,8 @@ my-app/
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/health` | Health check |
-| POST | `/api/auth/register` | สมัครสมาชิกด้วย email + password |
-| POST | `/api/auth/login` | เข้าสู่ระบบด้วย email + password |
+| POST | `/api/auth/register` | Register with email + password |
+| POST | `/api/auth/login` | Login with email + password |
 
 ## Environment Variables
 
@@ -90,18 +88,18 @@ JWT_SECRET=your-secret-here
 DATABASE_URL=postgresql://user:password@host/db?sslmode=require
 DIRECT_URL=postgresql://user:password@host/db?sslmode=require
 
-# Google OAuth (ถ้าเลือก)
+# Google OAuth (if selected)
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 GOOGLE_CALLBACK_URL=http://localhost:3000/api/auth/google/callback
 
-# GitHub OAuth (ถ้าเลือก)
+# GitHub OAuth (if selected)
 GITHUB_CLIENT_ID=
 GITHUB_CLIENT_SECRET=
 GITHUB_CALLBACK_URL=http://localhost:3000/api/auth/github/callback
 ```
 
-## Next Steps After Generation
+## Getting Started After Generation
 
 ```bash
 cd my-app
