@@ -1,114 +1,85 @@
-# @tanadon/create-backend
+# create-my-backend
 
-CLI tool for scaffolding a production-ready Express.js backend with Clean Architecture, Prisma, and JWT authentication.
+CLI สำหรับสร้าง backend project ด้วย Clean Architecture พร้อม Prisma, Express, และ TypeScript
+
+## Quick Start
 
 ```bash
-npx @tanadon/create-backend my-project
+npx create-my-backend my-app
 ```
 
-## Features
+หรือไม่ใส่ชื่อก็ได้ CLI จะถามเอง:
 
-- **Clean Architecture** — domain, application, infrastructure, presentation layers
-- **TypeScript** — strict mode enabled
-- **Prisma 7** — ORM with PostgreSQL or SQLite
-- **Auth** — Local (email/password), Google OAuth, GitHub OAuth
-- **JWT** — authentication with jsonwebtoken
-- **Vitest** — unit testing setup included
-- **GitHub Actions** — CI/CD workflow (optional)
-- **Docker Compose** — local PostgreSQL database (optional)
-
-## Requirements
-
-- Node.js >= 18
-- Docker (if using Docker Compose option)
+```bash
+npx create-my-backend
+```
 
 ## Usage
 
 ```bash
-npx @tanadon/create-backend my-project
+# สร้างโปรเจกต์ใหม่
+npx create-my-backend my-app
+
+# ดูก่อนว่าจะสร้างอะไรบ้าง (ยังไม่สร้างไฟล์จริง)
+npx create-my-backend my-app --dry-run
 ```
 
-You will be prompted to choose:
+## Options
 
-```
-? Project name: my-project
-? Select database:
-  ❯ PostgreSQL (Neon / Supabase)
-    SQLite (local dev / prototype)
+| Option | Description |
+|--------|-------------|
+| `[project-name]` | ชื่อโปรเจกต์ (ถ้าไม่ใส่จะถามทีหลัง) |
+| `--dry-run` | แสดง file tree และ dependencies ที่จะสร้าง โดยไม่สร้างไฟล์จริง |
 
-? Select auth providers:
-  ❯ ◉ Local (email + password)
-    ◯ Google OAuth
-    ◯ GitHub OAuth
+## Prompts
 
-? Include Docker Compose for local development? Yes
-? Include GitHub Actions CI/CD? Yes
-```
+CLI จะมีถามคำถาม 4 ข้อ:
 
-## Getting Started
-
-After generating your project:
-
-```bash
-cd my-project
-docker compose up -d        # start local PostgreSQL (if selected)
-npm install                 # installs deps + runs prisma generate
-npx prisma migrate dev --name init
-npm run dev
-```
+| คำถาม | ตัวเลือก |
+|-------|---------|
+| ชื่อโปรเจกต์ | free text |
+| Database | PostgreSQL (Neon / Supabase), SQLite |
+| Auth provider | Local (email + password), Google OAuth, GitHub OAuth |
+| GitHub Actions CI/CD | Yes / No |
 
 ## Generated Project Structure
 
 ```
-my-project/
+my-app/
+├── main.ts                         # Express server entry point
+├── package.json                    # Dependencies ตาม options ที่เลือก
+├── tsconfig.json
+├── .gitignore
+├── .env.example                    # Template env vars
+├── prisma/
+│   ├── schema.prisma               # Schema ตาม database ที่เลือก
+│   └── prisma.config.ts
 ├── src/
 │   ├── domain/
-│   │   ├── entities/
-│   │   │   └── user.entities.ts        # User type definitions
-│   │   └── repositories/
-│   │       └── user.repository.ts      # Repository interfaces
+│   │   ├── entities/user.entities.ts
+│   │   └── repositories/user.repository.ts
 │   ├── application/
-│   │   ├── use-cases/
-│   │   │   ├── register.use-case.ts
-│   │   │   ├── login.use-case.ts
-│   │   │   └── ...                     # OAuth use cases (if selected)
-│   │   └── utils/
-│   │       └── jwt.util.ts
+│   │   ├── use-cases/              # login, register + OAuth use cases
+│   │   └── utils/jwt.util.ts
 │   ├── infrastructure/
-│   │   ├── repositories/
-│   │   │   └── prisma-user.repository.ts
-│   │   └── config/
-│   │       └── passport-*.config.ts    # OAuth configs (if selected)
+│   │   ├── repositories/prisma-user.repository.ts
+│   │   └── config/                 # passport configs (ถ้าเลือก OAuth)
 │   └── presentation/
-│       ├── controllers/
-│       │   └── auth.controller.ts
-│       └── routes/
-│           └── auth.route.ts
-├── prisma/
-│   └── schema.prisma
-├── prisma.config.ts
-├── main.ts
-├── docker-compose.yml                  # (if selected)
-└── .github/workflows/ci.yml           # (if selected)
+│       ├── controllers/auth.controller.ts
+│       ├── routes/auth.route.ts
+│       ├── validators/auth.validator.ts
+│       └── middleware/error.middleware.ts
+└── .github/
+    └── workflows/ci.yml            # (ถ้าเลือก CI)
 ```
 
 ## API Endpoints
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/api/auth/register` | Register with email + password |
-| POST | `/api/auth/login` | Login with email + password |
-| GET | `/api/auth/google` | Google OAuth (if selected) |
-| GET | `/api/auth/github` | GitHub OAuth (if selected) |
-
-## Generated package.json Scripts
-
-| Script | Description |
-|--------|-------------|
-| `npm run dev` | Start development server |
-| `npm run build` | Compile TypeScript |
-| `npm start` | Run compiled server |
-| `npm test` | Run unit tests |
+| GET | `/health` | Health check |
+| POST | `/api/auth/register` | สมัครสมาชิกด้วย email + password |
+| POST | `/api/auth/login` | เข้าสู่ระบบด้วย email + password |
 
 ## Environment Variables
 
@@ -116,19 +87,59 @@ my-project/
 JWT_SECRET=your-secret-here
 
 # PostgreSQL
-DATABASE_URL=postgresql://...
-DIRECT_URL=postgresql://...     # used for prisma migrate
+DATABASE_URL=postgresql://user:password@host/db?sslmode=require
+DIRECT_URL=postgresql://user:password@host/db?sslmode=require
 
-# Google OAuth (if selected)
+# Google OAuth (ถ้าเลือก)
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
-GOOGLE_CALLBACK_URL=
+GOOGLE_CALLBACK_URL=http://localhost:3000/api/auth/google/callback
 
-# GitHub OAuth (if selected)
+# GitHub OAuth (ถ้าเลือก)
 GITHUB_CLIENT_ID=
 GITHUB_CLIENT_SECRET=
-GITHUB_CALLBACK_URL=
+GITHUB_CALLBACK_URL=http://localhost:3000/api/auth/github/callback
 ```
+
+## Next Steps After Generation
+
+```bash
+cd my-app
+npm install
+cp .env.example .env
+
+# PostgreSQL
+npx prisma migrate dev --name init
+
+# SQLite
+npx prisma db push
+
+npm run dev
+```
+
+## Scripts
+
+| Script | Description |
+|--------|-------------|
+| `npm run dev` | Start development server |
+| `npm run build` | Compile TypeScript |
+| `npm start` | Run compiled server |
+| `npm test` | Run tests |
+
+## Tech Stack
+
+| Layer | Package |
+|-------|---------|
+| Framework | Express 5 |
+| ORM | Prisma 7 |
+| Validation | Zod |
+| Auth | jsonwebtoken + bcrypt + passport |
+| Language | TypeScript 6 |
+| Test | Vitest |
+
+## Requirements
+
+- Node.js >= 18
 
 ## License
 

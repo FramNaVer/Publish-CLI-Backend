@@ -10,7 +10,7 @@ export interface UserChoices {
     includeCI: boolean;
 }
 
-export async function runCLI(projectName?: string) {
+export async function runCLI(projectName?: string, dryRun = false) {
     console.log(chalk.bold.cyan("\n create-my-backend\n"));
 
     const answers = await inquirer.prompt<UserChoices>([
@@ -61,5 +61,5 @@ export async function runCLI(projectName?: string) {
         projectName: projectName ?? answers.projectName,
     };
 
-    await generateProject(choices);
+    await generateProject(choices, dryRun);
 }

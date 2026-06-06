@@ -6,62 +6,122 @@ import { writeFile, copyTemplate } from "./utils/file";
 
 const TEMPLATES_DIR = path.join(__dirname, "../templates");
 
-export async function generateProject(choices: UserChoices) {
-    const { projectName, database, auth, includeDocker, includeCI } = choices;
+export async function generateProject(choices: UserChoices, dryRun = false) {
+    if (dryRun) {
+        printDryRun(choices);
+        return;
+    }
+
+    const { projectName, database, auth, includeCI } = choices;
     const projectPath = path.join(process.cwd(), projectName);
 
-    const spinner = ora(`Creating ${projectName}...`).start();
+    const spinner = ora(`กำลังสร้าง ${projectName}...`).start();
 
     try {
+        // 1. copy base template (โครงสร้าง Clean Architecture)
         await copyTemplate(path.join(TEMPLATES_DIR, "base"), projectPath);
-        spinner.text = "Setting up project structure...";
+        spinner.text = "สร้างโครงสร้างหลัก...";
 
+        // 2. copy database template (schema.prisma + prisma.config.ts)
         await copyTemplate(
             path.join(TEMPLATES_DIR, "database", database),
-            projectPath,
+            path.join(projectPath, "prisma"),
         );
-        spinner.text = "Configuring database...";
+        spinner.text = "ตั้งค่า database...";
 
+        // 3. copy auth templates ที่เลือก
         for (const provider of auth) {
             await copyTemplate(
                 path.join(TEMPLATES_DIR, "auth", provider),
                 path.join(projectPath, "src"),
             );
         }
-        spinner.text = "Configuring auth...";
+        spinner.text = "ตั้งค่า auth...";
 
+        // 4. สร้าง package.json จาก template แทน placeholder
         const packageJson = buildPackageJson(projectName, auth);
         await writeFile(
             path.join(projectPath, "package.json"),
             JSON.stringify(packageJson, null, 2),
         );
 
-        const envContent = buildEnvFile(database, auth, includeDocker);
+        // 5. สร้าง .env จาก template ตาม options ที่เลือก
+        const envContent = buildEnvFile(database, auth);
         await writeFile(path.join(projectPath, ".env.example"), envContent);
-        spinner.text = "Generating config files...";
+        spinner.text = "สร้างไฟล์ config...";
 
-        if (includeDocker && database === "postgresql") {
-            await copyTemplate(
-                path.join(TEMPLATES_DIR, "docker", "postgresql"),
-                projectPath,
-            );
-            spinner.text = "Adding Docker Compose...";
-        }
-
+        // 6. สร้าง CI ถ้าเลือก
         if (includeCI) {
             await copyTemplate(
                 path.join(TEMPLATES_DIR, "ci"),
                 path.join(projectPath, ".github", "workflows"),
             );
-            spinner.text = "Setting up CI...";
+            spinner.text = "ตั้งค่า CI...";
         }
 
-        spinner.succeed(chalk.green(`Created ${projectName} successfully!`));
-        printNextSteps(projectName, database, choices.includeDocker);
+        spinner.succeed(chalk.green(`สร้าง ${projectName} สำเร็จ!`));
+        printNextSteps(projectName, database);
     } catch (err) {
-        spinner.fail(chalk.red("Something went wrong"));
+        spinner.fail(chalk.red("เกิดข้อผิดพลาด"));
         throw err;
     }
+}
+
+function printDryRun(choices: UserChoices) {
+    const { projectName, database, auth, includeCI } = choices;
+    const oauthProviders = auth.filter((a) => a !== "local");
+
+    console.log(chalk.bold.yellow("\n  Dry run — ไม่มีการสร้างไฟล์จริง\n"));
+    console.log(chalk.bold(`  ${projectName}/`));
+
+    const lines = [
+        "  ├── main.ts",
+        "  ├── package.json",
+        "  ├── tsconfig.json",
+        "  ├── .gitignore",
+        "  ├── .env.example",
+        "  ├── prisma/",
+        `  │   ├── schema.prisma         ${chalk.gray(`(${database})`)}`,
+        "  │   └── prisma.config.ts",
+        "  ├── src/",
+        "  │   ├── domain/",
+        "  │   ├── application/",
+        `  │   │   └── use-cases/        ${chalk.gray(`(${auth.join(", ")})`)}`,
+        "  │   ├── infrastructure/",
+    ];
+
+    if (oauthProviders.length > 0) {
+        lines.push(`  │   │   └── config/           ${chalk.gray(`(passport: ${oauthProviders.join(", ")})`)}`)
+    }
+
+    lines.push(
+        "  │   └── presentation/",
+        "  │       ├── controllers/",
+        "  │       ├── routes/",
+        "  │       ├── validators/",
+        "  │       └── middleware/",
+    );
+
+    if (includeCI) {
+        lines.push(
+            "  └── .github/",
+            "      └── workflows/ci.yml",
+        );
+    }
+
+    lines.forEach((l) => console.log(l));
+
+    console.log(chalk.bold("\n  Dependencies:"));
+
+    const coreDeps = ["@prisma/client", "express", "jsonwebtoken", "dotenv", "cors", "zod"];
+    console.log(chalk.gray(`  + ${coreDeps.join(", ")}`));
+
+    if (auth.includes("local")) console.log(chalk.gray("  + bcrypt"));
+    if (oauthProviders.length > 0) console.log(chalk.gray("  + passport"));
+    if (auth.includes("google")) console.log(chalk.gray("  + passport-google-oauth20"));
+    if (auth.includes("github")) console.log(chalk.gray("  + passport-github2"));
+
+    console.log();
 }
 
 function buildPackageJson(projectName: string, auth: string[]) {
@@ -72,6 +132,8 @@ function buildPackageJson(projectName: string, auth: string[]) {
         jsonwebtoken: "^9.0.3",
         pg: "^8.21.0",
         dotenv: "^16.0.0",
+        cors: "^2.8.5",
+        zod: "^3.23.0",
     };
 
     const devDeps: Record<string, string> = {
@@ -79,13 +141,14 @@ function buildPackageJson(projectName: string, auth: string[]) {
         "@types/jsonwebtoken": "^9.0.10",
         "@types/node": "^22.0.0",
         "@types/pg": "^8.0.0",
+        "@types/cors": "^2.8.17",
         prisma: "^7.8.0",
         "ts-node": "^10.9.2",
         typescript: "^6.0.3",
         vitest: "^4.0.0",
     };
 
-    // add dependencies based on selected auth providers
+    // เพิ่ม dependencies ตาม auth ที่เลือก
     if (auth.includes("local")) {
         deps["bcrypt"] = "^6.0.0";
         devDeps["@types/bcrypt"] = "^6.0.0";
@@ -107,7 +170,6 @@ function buildPackageJson(projectName: string, auth: string[]) {
         name: projectName,
         version: "1.0.0",
         scripts: {
-            postinstall: "prisma generate",
             dev: "ts-node main.ts",
             build: "tsc --outDir dist",
             start: "node dist/main.js",
@@ -119,31 +181,20 @@ function buildPackageJson(projectName: string, auth: string[]) {
     };
 }
 
-function buildEnvFile(database: string, auth: string[], includeDocker?: boolean): string {
+function buildEnvFile(database: string, auth: string[]): string {
     const lines = ["# Generated by create-my-backend", ""];
 
     lines.push("JWT_SECRET=your-secret-here", "");
 
     if (database === "postgresql") {
-        if (includeDocker) {
-            lines.push(
-                "# Docker Compose local database",
-                "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/devdb",
-                "",
-                "# Direct URL — used for prisma migrate",
-                "DIRECT_URL=postgresql://postgres:postgres@localhost:5432/devdb",
-                "",
-            );
-        } else {
-            lines.push(
-                "# Pooler URL — used by PrismaClient at runtime",
-                "DATABASE_URL=postgresql://user:password@host/db?sslmode=require",
-                "",
-                "# Direct URL — used for prisma migrate",
-                "DIRECT_URL=postgresql://user:password@host/db?sslmode=require",
-                "",
-            );
-        }
+        lines.push(
+            "# Pooler URL — ใช้ใน PrismaClient runtime",
+            "DATABASE_URL=postgresql://user:password@host/db?sslmode=require",
+            "",
+            "# Direct URL — ใช้สำหรับ prisma migrate",
+            "DIRECT_URL=postgresql://user:password@host/db?sslmode=require",
+            "",
+        );
     } else {
         lines.push("DATABASE_URL=file:./dev.db", "");
     }
@@ -168,21 +219,17 @@ function buildEnvFile(database: string, auth: string[], includeDocker?: boolean)
     return lines.join("\n");
 }
 
-function printNextSteps(projectName: string, database: string, includeDocker?: boolean) {
-    const migrateCmd = database === "postgresql"
-        ? chalk.cyan("npx prisma migrate dev --name init")
-        : chalk.cyan("npx prisma db push");
-
-    const dockerStep = includeDocker
-        ? `  ${chalk.cyan("docker compose up -d")}   ${chalk.gray("← start local database")}\n`
-        : `  ${chalk.cyan("cp .env.example .env")}   ${chalk.gray("← fill in your credentials")}\n`;
-
+function printNextSteps(projectName: string, database: string) {
     console.log(`
 ${chalk.bold("Next steps:")}
 
   ${chalk.cyan(`cd ${projectName}`)}
   ${chalk.cyan("npm install")}
-${dockerStep}  ${migrateCmd}
+  ${chalk.cyan("cp .env.example .env")}   ${chalk.gray("← ใส่ค่าจริงใน .env")}
+  ${database === "postgresql"
+        ? chalk.cyan("npx prisma migrate dev --name init")
+        : chalk.cyan("npx prisma db push")
+    }
   ${chalk.cyan("npm run dev")}
 `);
 }
