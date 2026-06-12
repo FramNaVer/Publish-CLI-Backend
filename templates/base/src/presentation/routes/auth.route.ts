@@ -1,13 +1,8 @@
 import { Router } from "express";
-import { Pool } from "pg";
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "../../../generated/prisma";
+import { prisma } from "../../infrastructure/database/prisma";
 import { PrismaUserRepository } from "../../infrastructure/repositories/prisma-user.repository";
 import { AuthController } from "../controllers/auth.controller";
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
 const router = Router();
 
 const userRepo = new PrismaUserRepository(prisma);

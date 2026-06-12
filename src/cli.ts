@@ -59,6 +59,8 @@ export async function runCLI(projectName?: string, dryRun = false) {
     const choices: UserChoices = {
         ...answers,
         projectName: projectName ?? answers.projectName,
+        // the Docker prompt is skipped for sqlite, leaving the answer undefined
+        includeDocker: answers.includeDocker ?? false,
     };
 
     await generateProject(choices, dryRun);

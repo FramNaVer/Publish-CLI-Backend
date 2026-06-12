@@ -1,15 +1,22 @@
-import { PrismaClient } from "../../../generated/prisma";
+import { PrismaClient, User } from "../../../generated/prisma";
+import { UserEntity, Role } from "../../domain/entities/user.entities";
 import { UserRepository, CreateUserData, LinkOAuthData } from "../../domain/repositories/user.repository";
 
 export class PrismaUserRepository implements UserRepository {
     constructor(private prisma: PrismaClient) {}
 
+    private toEntity(user: User): UserEntity {
+        return { ...user, role: user.role as Role };
+    }
+
     async findByEmail(email: string) {
-        return this.prisma.user.findUnique({ where: { email } });
+        const user = await this.prisma.user.findUnique({ where: { email } });
+        return user ? this.toEntity(user) : null;
     }
 
     async findById(id: string) {
-        return this.prisma.user.findUnique({ where: { id } });
+        const user = await this.prisma.user.findUnique({ where: { id } });
+        return user ? this.toEntity(user) : null;
     }
 
     async findPasswordHashByUserId(userId: string) {
@@ -18,7 +25,7 @@ export class PrismaUserRepository implements UserRepository {
     }
 
     async create(data: CreateUserData) {
-        return this.prisma.user.create({
+        const user = await this.prisma.user.create({
             data: {
                 email: data.email,
                 displayName: data.displayName,
@@ -37,6 +44,7 @@ export class PrismaUserRepository implements UserRepository {
                 }),
             },
         });
+        return this.toEntity(user);
     }
 
     async linkOAuthProvider(userId: string, data: LinkOAuthData) {

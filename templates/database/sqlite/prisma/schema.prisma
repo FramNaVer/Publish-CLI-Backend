@@ -12,7 +12,7 @@ model User {
   email           String    @unique
   displayName     String?
   avatarUrl       String?
-  role            Role      @default(USER)
+  role            String    @default("USER")
   isEmailVerified Boolean   @default(false)
   isActive        Boolean   @default(true)
   createdAt       DateTime  @default(now())
@@ -49,9 +49,4 @@ model UserOAuthProvider {
 
   @@unique([provider, providerUserId])
   @@index([userId])
-}
-
-enum Role {
-  USER
-  ADMIN
 }

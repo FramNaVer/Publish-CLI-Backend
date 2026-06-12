@@ -12,7 +12,7 @@ export async function generateProject(choices: UserChoices, dryRun = false) {
         return;
     }
 
-    const { projectName, database, auth, includeCI } = choices;
+    const { projectName, database, auth, includeDocker, includeCI } = choices;
     const projectPath = path.join(process.cwd(), projectName);
 
     const spinner = ora(`Generating ${projectName}...`).start();
@@ -23,7 +23,7 @@ export async function generateProject(choices: UserChoices, dryRun = false) {
 
         await copyTemplate(
             path.join(TEMPLATES_DIR, "database", database),
-            path.join(projectPath, "prisma"),
+            projectPath,
         );
         spinner.text = "Configuring database...";
 
@@ -35,15 +35,23 @@ export async function generateProject(choices: UserChoices, dryRun = false) {
         }
         spinner.text = "Configuring auth...";
 
-        const packageJson = buildPackageJson(projectName, auth);
+        const packageJson = buildPackageJson(projectName, database, auth);
         await writeFile(
             path.join(projectPath, "package.json"),
             JSON.stringify(packageJson, null, 2),
         );
 
-        const envContent = buildEnvFile(database, auth);
+        const envContent = buildEnvFile(database, auth, includeDocker);
         await writeFile(path.join(projectPath, ".env.example"), envContent);
         spinner.text = "Writing config files...";
+
+        if (includeDocker) {
+            await copyTemplate(
+                path.join(TEMPLATES_DIR, "docker", database),
+                projectPath,
+            );
+            spinner.text = "Setting up Docker Compose...";
+        }
 
         if (includeCI) {
             await copyTemplate(
@@ -54,7 +62,7 @@ export async function generateProject(choices: UserChoices, dryRun = false) {
         }
 
         spinner.succeed(chalk.green(`Created ${projectName} successfully!`));
-        printNextSteps(projectName, database);
+        printNextSteps(projectName, database, includeDocker);
     } catch (err) {
         spinner.fail(chalk.red("Something went wrong"));
         throw err;
@@ -62,7 +70,7 @@ export async function generateProject(choices: UserChoices, dryRun = false) {
 }
 
 function printDryRun(choices: UserChoices) {
-    const { projectName, database, auth, includeCI } = choices;
+    const { projectName, database, auth, includeDocker, includeCI } = choices;
     const oauthProviders = auth.filter((a) => a !== "local");
 
     console.log(chalk.bold.yellow("\n  Dry run — no files will be created\n"));
@@ -72,17 +80,25 @@ function printDryRun(choices: UserChoices) {
         "  ├── main.ts",
         "  ├── package.json",
         "  ├── tsconfig.json",
+        "  ├── prisma.config.ts",
         "  ├── .gitignore",
         "  ├── .env.example",
+    ];
+
+    if (includeDocker) {
+        lines.push("  ├── docker-compose.yml");
+    }
+
+    lines.push(
         "  ├── prisma/",
-        `  │   ├── schema.prisma         ${chalk.gray(`(${database})`)}`,
-        "  │   └── prisma.config.ts",
+        `  │   └── schema.prisma         ${chalk.gray(`(${database})`)}`,
         "  ├── src/",
         "  │   ├── domain/",
         "  │   ├── application/",
         `  │   │   └── use-cases/        ${chalk.gray(`(${auth.join(", ")})`)}`,
         "  │   ├── infrastructure/",
-    ];
+        `  │   │   ${oauthProviders.length > 0 ? "├──" : "└──"} database/          ${chalk.gray(`(${database} client)`)}`,
+    );
 
     if (oauthProviders.length > 0) {
         lines.push(`  │   │   └── config/           ${chalk.gray(`(passport: ${oauthProviders.join(", ")})`)}`)
@@ -110,6 +126,12 @@ function printDryRun(choices: UserChoices) {
     const coreDeps = ["@prisma/client", "express", "jsonwebtoken", "dotenv", "cors", "zod"];
     console.log(chalk.gray(`  + ${coreDeps.join(", ")}`));
 
+    if (database === "postgresql") {
+        console.log(chalk.gray("  + pg, @prisma/adapter-pg"));
+    } else {
+        console.log(chalk.gray("  + @prisma/adapter-better-sqlite3"));
+    }
+
     if (auth.includes("local")) console.log(chalk.gray("  + bcrypt"));
     if (oauthProviders.length > 0) console.log(chalk.gray("  + passport"));
     if (auth.includes("google")) console.log(chalk.gray("  + passport-google-oauth20"));
@@ -118,13 +140,11 @@ function printDryRun(choices: UserChoices) {
     console.log();
 }
 
-function buildPackageJson(projectName: string, auth: string[]) {
+function buildPackageJson(projectName: string, database: string, auth: string[]) {
     const deps: Record<string, string> = {
-        "@prisma/adapter-pg": "^7.8.0",
         "@prisma/client": "^7.8.0",
         express: "^5.2.1",
         jsonwebtoken: "^9.0.3",
-        pg: "^8.21.0",
         dotenv: "^16.0.0",
         cors: "^2.8.5",
         zod: "^3.23.0",
@@ -134,13 +154,20 @@ function buildPackageJson(projectName: string, auth: string[]) {
         "@types/express": "^5.0.6",
         "@types/jsonwebtoken": "^9.0.10",
         "@types/node": "^22.0.0",
-        "@types/pg": "^8.0.0",
         "@types/cors": "^2.8.17",
         prisma: "^7.8.0",
         "ts-node": "^10.9.2",
         typescript: "^6.0.3",
         vitest: "^4.0.0",
     };
+
+    if (database === "postgresql") {
+        deps["@prisma/adapter-pg"] = "^7.8.0";
+        deps["pg"] = "^8.21.0";
+        devDeps["@types/pg"] = "^8.0.0";
+    } else {
+        deps["@prisma/adapter-better-sqlite3"] = "^7.8.0";
+    }
 
     if (auth.includes("local")) {
         deps["bcrypt"] = "^6.0.0";
@@ -174,12 +201,21 @@ function buildPackageJson(projectName: string, auth: string[]) {
     };
 }
 
-function buildEnvFile(database: string, auth: string[]): string {
+function buildEnvFile(database: string, auth: string[], includeDocker: boolean): string {
     const lines = ["# Generated by create-my-backend", ""];
 
     lines.push("JWT_SECRET=your-secret-here", "");
 
-    if (database === "postgresql") {
+    if (database === "postgresql" && includeDocker) {
+        lines.push(
+            "# Matches the local docker-compose.yml database",
+            "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/devdb",
+            "",
+            "# Direct URL — used for prisma migrate",
+            "DIRECT_URL=postgresql://postgres:postgres@localhost:5432/devdb",
+            "",
+        );
+    } else if (database === "postgresql") {
         lines.push(
             "# Pooler URL — used by PrismaClient at runtime",
             "DATABASE_URL=postgresql://user:password@host/db?sslmode=require",
@@ -212,17 +248,22 @@ function buildEnvFile(database: string, auth: string[]): string {
     return lines.join("\n");
 }
 
-function printNextSteps(projectName: string, database: string) {
+function printNextSteps(projectName: string, database: string, includeDocker: boolean) {
+    const dockerStep = includeDocker
+        ? `\n  ${chalk.cyan("docker compose up -d")}   ${chalk.gray("← start local database")}`
+        : "";
+
     console.log(`
 ${chalk.bold("Next steps:")}
 
   ${chalk.cyan(`cd ${projectName}`)}
   ${chalk.cyan("npm install")}
-  ${chalk.cyan("cp .env.example .env")}   ${chalk.gray("← fill in real values")}
+  ${chalk.cyan("cp .env.example .env")}   ${chalk.gray("← fill in real values")}${dockerStep}
   ${database === "postgresql"
         ? chalk.cyan("npx prisma migrate dev --name init")
         : chalk.cyan("npx prisma db push")
     }
+  ${chalk.cyan("npx prisma generate")}
   ${chalk.cyan("npm run dev")}
 `);
 }
